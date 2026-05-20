@@ -9,47 +9,50 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: 📂 Checkout Repository
-      uses: actions/checkout@v3
+      - name: 📂 Checkout Repository
+        uses: actions/checkout@v3
 
-    - name: ☕ Setup Java JDK
-      uses: actions/setup-java@v3
-      with:
-        distribution: 'zulu'
-        java-version: '17'
+      - name: ☕ Setup Java JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
 
-    - name: 🚀 Setup Flutter SDK
-      uses: subosito/flutter-action@v2
-      with:
-        channel: 'stable'
-        architecture: x64
+      - name: 🎯 Setup Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          architecture: x64
 
-    - name: 🛠️ Create Flutter MOD Project Structure
-      run: |
-        rm -rf nexus_app
-        flutter create nexus_app --project-name=nexus_mod_app --org=com.nexus.mod
-        
-        cat << 'INNER_EOF' > nexus_app/lib/main.dart
-        ${{ github.event.client_payload.code }}
-        INNER_EOF
+      - name: 🏗️ Create Flutter Project Structure
+        run: |
+          rm -rf nexus_app
+          flutter create nexus_app --project-name=nexus_mod_app --org=com.nexus.node
+          
+          # Injecting pure code sent from Sketchware App
+          cat << 'INNER_EOF' > nexus_app/lib/main.dart
+          ${{ github.event.client_payload.code }}
+          INNER_EOF
 
-    - name: 📦 Install Dependencies & Compile MOD APK
-      run: |
-        cd nexus_app
-        flutter pub get
-        flutter build apk --release --no-tree-shake-icons
+      - name: 📦 Install Dependencies & Compile APK
+        run: |
+          cd nexus_app
+          flutter pub get
+          flutter build apk --release --no-tree-shake-icons
 
-    - name: 🚀 Delete Old Release tags
-      run: |
-        gh release delete latest --yes || true
-        git push --delete origin latest || true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: 🧹 Clean and Delete Old Release Tags
+        run: |
+          # Preventing token errors by forcing delete check
+          gh release delete latest --yes || true
+          git push --delete origin latest || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: ⚡ Publish APK to Direct App Release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: latest
-        files: nexus_app/build/app/outputs/flutter-apk/app-release.apk
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: ⚡ Publish APK to Direct App Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: latest
+          files: nexus_app/build/app/outputs/flutter-apk/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
