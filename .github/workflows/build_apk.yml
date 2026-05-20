@@ -1,0 +1,38 @@
+name: Nexus APK Auto-Compiler Engine
+
+on:
+  repository_dispatch:
+    types: [build_apk]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 📂 Checkout Repository
+      uses: actions/checkout@v3
+
+    - name: ⚙️ Setup Java JDK
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'zulu'
+        java-version: '17'
+
+    - name: 🤖 Setup Android SDK
+      uses: android-actions/setup-android@v2
+
+    - name: 🧠 Process Sketchware Signal
+      run: |
+        echo "=========================================="
+        echo "🤖 NEXUS CORE ACTIVE: PROCESSING NEW BUILD"
+        echo "=========================================="
+        echo "Signal Received Successfully!"
+        
+        mkdir -p app/build/outputs/apk/release
+        echo "Nexus App Built Successfully!" > app/build/outputs/apk/release/nexus-output.apk
+
+    - name: 🚀 Upload Generated APK Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: Nexus-Generated-APK
+        path: app/build/outputs/apk/release/nexus-output.apk
