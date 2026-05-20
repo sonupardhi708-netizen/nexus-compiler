@@ -30,7 +30,7 @@ jobs:
           flutter create nexus_app --project-name=nexus_mod_app --org=com.nexus.node
           cd nexus_app
           
-          # Injecting the code directly from base64 to avoid JSON breaking issues
+          # Base64 से कोड को बिना किसी स्ट्रिंग टूटे वापस असली Flutter कोड में बदलना
           echo "${{ github.event.client_payload.code }}" | base64 --decode > lib/main.dart
 
       - name: 📦 Build Production APK
@@ -53,3 +53,4 @@ jobs:
           files: nexus_app/build/app/outputs/flutter-apk/app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
