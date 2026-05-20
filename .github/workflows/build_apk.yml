@@ -24,24 +24,56 @@ jobs:
         channel: 'stable'
         architecture: x64
 
-    - name: 🛠️ Create Flutter Project Structure
+    - name: 🛠️ Create Flutter MOD Project Structure
       run: |
-        rm -rf nexus_app
-        flutter create nexus_app --project-name=nexus_app --org=com.nexus.ai
+        echo "=========================================="
+        echo "🤖 NEXUS CORE ACTIVE: GENERATING MOD APP"
+        echo "=========================================="
         
+        # पुराना ढांचा साफ करना
+        rm -rf nexus_app
+        
+        # नया फ्लटर प्रोजेक्ट बनाना
+        flutter create nexus_app --project-name=nexus_mod_app --org=com.nexus.mod
+        
+        # 1. कॉन्फिगरेशन फाइल (pubspec.yaml) को ऑटोमैटिक लिखना
+        cat << 'INNER_EOF' > nexus_app/pubspec.yaml
+        name: nexus_mod_app
+        description: "A Flutter MOD APK compiled via Nexus Engine."
+        publish_to: 'none'
+        version: 1.0.0+1
+
+        environment:
+          sdk: '>=3.0.0 <4.0.0'
+
+        dependencies:
+          flutter:
+            sdk: flutter
+          cupertino_icons: ^1.0.5
+
+        dev_dependencies:
+          flutter_test:
+            sdk: flutter
+          flutter_lints: ^2.0.0
+
+        flutter:
+          uses-material-design: true
+        INNER_EOF
+
+        # 2. आपकी स्केचवेयर ऐप से आने वाले लाइव कोड को main.dart में डालना
         cat << 'INNER_EOF' > nexus_app/lib/main.dart
         ${{ github.event.client_payload.code }}
         INNER_EOF
 
-    - name: 📦 Install Dependencies & Compile APK
+    - name: 📦 Install Dependencies & Compile MOD APK
       run: |
         cd nexus_app
         flutter pub get
         flutter build apk --release --no-tree-shake-icons
 
-    - name: 📤 Upload Production APK
+    - name: 📤 Upload Production MOD APK
       uses: actions/upload-artifact@v3
       with:
-        name: Nexus-Production-APK
+        name: Nexus-MOD-APK
         path: nexus_app/build/app/outputs/flutter-apk/app-release.apk
         
