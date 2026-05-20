@@ -12,7 +12,7 @@ jobs:
     - name: 📂 Checkout Repository
       uses: actions/checkout@v3
 
-    - name: ⚙️ Setup Java JDK
+    - name: ☕ Setup Java JDK
       uses: actions/setup-java@v3
       with:
         distribution: 'zulu'
@@ -26,41 +26,9 @@ jobs:
 
     - name: 🛠️ Create Flutter MOD Project Structure
       run: |
-        echo "=========================================="
-        echo "🤖 NEXUS CORE ACTIVE: GENERATING MOD APP"
-        echo "=========================================="
-        
-        # पुराना ढांचा साफ करना
         rm -rf nexus_app
-        
-        # नया फ्लटर प्रोजेक्ट बनाना
         flutter create nexus_app --project-name=nexus_mod_app --org=com.nexus.mod
         
-        # 1. कॉन्फिगरेशन फाइल (pubspec.yaml) को ऑटोमैटिक लिखना
-        cat << 'INNER_EOF' > nexus_app/pubspec.yaml
-        name: nexus_mod_app
-        description: "A Flutter MOD APK compiled via Nexus Engine."
-        publish_to: 'none'
-        version: 1.0.0+1
-
-        environment:
-          sdk: '>=3.0.0 <4.0.0'
-
-        dependencies:
-          flutter:
-            sdk: flutter
-          cupertino_icons: ^1.0.5
-
-        dev_dependencies:
-          flutter_test:
-            sdk: flutter
-          flutter_lints: ^2.0.0
-
-        flutter:
-          uses-material-design: true
-        INNER_EOF
-
-        # 2. आपकी स्केचवेयर ऐप से आने वाले लाइव कोड को main.dart में डालना
         cat << 'INNER_EOF' > nexus_app/lib/main.dart
         ${{ github.event.client_payload.code }}
         INNER_EOF
@@ -71,9 +39,17 @@ jobs:
         flutter pub get
         flutter build apk --release --no-tree-shake-icons
 
-    - name: 📤 Upload Production MOD APK
-      uses: actions/upload-artifact@v3
+    - name: 🚀 Delete Old Release tags
+      run: |
+        gh release delete latest --yes || true
+        git push --delete origin latest || true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: ⚡ Publish APK to Direct App Release
+      uses: softprops/action-gh-release@v1
       with:
-        name: Nexus-MOD-APK
-        path: nexus_app/build/app/outputs/flutter-apk/app-release.apk
-        
+        tag_name: latest
+        files: nexus_app/build/app/outputs/flutter-apk/app-release.apk
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
