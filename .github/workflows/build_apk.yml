@@ -1,4 +1,4 @@
-name: Nexus APK Auto-Compiler Engine
+name: Nexus Flutter Production Compiler Engine
 
 on:
   repository_dispatch:
@@ -18,21 +18,30 @@ jobs:
         distribution: 'zulu'
         java-version: '17'
 
-    - name: 🤖 Setup Android SDK
-      uses: android-actions/setup-android@v2
+    - name: 🚀 Setup Flutter SDK
+      uses: subosito/flutter-action@v2
+      with:
+        channel: 'stable'
+        architecture: x64
 
-    - name: 🧠 Process Sketchware Signal
+    - name: 🛠️ Create Flutter Project Structure
       run: |
-        echo "=========================================="
-        echo "🤖 NEXUS CORE ACTIVE: PROCESSING NEW BUILD"
-        echo "=========================================="
-        echo "Signal Received Successfully!"
+        rm -rf nexus_app
+        flutter create nexus_app --project-name=nexus_app --org=com.nexus.ai
         
-        mkdir -p app/build/outputs/apk/release
-        echo "Nexus App Built Successfully!" > app/build/outputs/apk/release/nexus-output.apk
+        cat << 'INNER_EOF' > nexus_app/lib/main.dart
+        ${{ github.event.client_payload.code }}
+        INNER_EOF
 
-    - name: 🚀 Upload Generated APK Artifact
+    - name: 📦 Install Dependencies & Compile APK
+      run: |
+        cd nexus_app
+        flutter pub get
+        flutter build apk --release --no-tree-shake-icons
+
+    - name: 📤 Upload Production APK
       uses: actions/upload-artifact@v3
       with:
-        name: Nexus-Generated-APK
-        path: app/build/outputs/apk/release/nexus-output.apk
+        name: Nexus-Production-APK
+        path: nexus_app/build/app/outputs/flutter-apk/app-release.apk
+        
