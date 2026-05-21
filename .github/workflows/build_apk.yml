@@ -1,4 +1,4 @@
-name: Nexus Flutter Production Compiler Engine
+name: Nexus Production Compiler Engine
 
 on:
   repository_dispatch:
@@ -22,16 +22,17 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          cache: true
 
-      - name: 🏗️ Create Super Stable Project
+      - name: 🏗️ Create Stable Project
         run: |
           rm -rf nexus_app
           flutter create nexus_app --project-name=nexus_mod_app --org=com.nexus.node
           cd nexus_app
           
-          # Base64 से कोड को बिना किसी स्ट्रिंग टूटे वापस असली Flutter कोड में बदलना
-          echo "${{ github.event.client_payload.code }}" | base64 --decode > lib/main.dart
+          # Direct insertion without base64 breaking issues
+          cat << 'EOF' > lib/main.dart
+          ${{ github.event.client_payload.code }}
+          EOF
 
       - name: 📦 Build Production APK
         run: |
@@ -39,7 +40,7 @@ jobs:
           flutter pub get
           flutter build apk --release --no-tree-shake-icons
 
-      - name: 🧹 Clean Old Release Tags
+      - name: 🧹 Clean Old Releases
         run: |
           gh release delete latest --yes || true
           git push --delete origin latest || true
