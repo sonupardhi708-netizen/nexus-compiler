@@ -61,26 +61,16 @@ jobs:
           api_key = os.environ.get('GROQ_API_KEY', '')
 
           if not api_key:
-              print("❌ ERROR: GROQ_API_KEY is missing in GitHub Secrets!")
+              print("❌ ERROR: GROQ_API_KEY is missing!")
               sys.exit(1)
 
           if not prompt:
               prompt = "Create a simple beautiful responsive flutter app dashboard"
 
-          print(f">> Triggering AI Generation for App: {app_name}")
-
-          system_instruction = (
-              "You are the Nexus AI Pro Builder core engine. "
-              "Generate a complete, production-ready, single-file Flutter UI code inside main.dart. "
-              "Return ONLY valid Dart code wrapped in ```dart 
+          system_instruction = "You are the Nexus AI Pro Builder core engine. Generate a complete, production-ready, single-file Flutter UI code inside main.dart. Return ONLY valid Dart code wrapped in ```dart 
 ``` blocks. Include all necessary imports."
-          )
 
-          headers = {
-              'Authorization': f'Bearer {api_key}',
-              'Content-Type': 'application/json'
-          }
-
+          headers = {'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'}
           data = {
               'model': 'llama3-70b-8192',
               'messages': [
@@ -93,21 +83,14 @@ jobs:
           try:
               response = requests.post('https://api.groq.com/openai/v1/chat/completions', headers=headers, json=data)
               res_json = response.json()
-              
-              if 'choices' not in res_json:
-                  print("❌ Groq API Error Response:", res_json)
-                  sys.exit(1)
-                  
               ai_text = res_json['choices'][0]['message']['content']
               code_match = re.search(r'```dart(.*?)```', ai_text, re.DOTALL)
               clean_code = code_match.group(1).strip() if code_match else ai_text.strip()
-
               os.makedirs('nexus_temp_app/lib', exist_ok=True)
               with open('nexus_temp_app/lib/main.dart', 'w') as f:
                   f.write(clean_code)
-              print("✅ AI Code successfully generated and injected into main.dart!")
           except Exception as e:
-              print(f"❌ Script failed with exception: {e}")
+              print(f"❌ Script failed: {e}")
               sys.exit(1)
           EOF
 
@@ -127,14 +110,12 @@ jobs:
           mkdir -p build/outputs/apk/release
           cp nexus_temp_app/build/app/outputs/flutter-apk/app-release.apk build/outputs/apk/release/app-release.apk
 
-      - name: Deploy Genuine Artifact to GitHub Releases
+      - name: Deploy Genuine Artifact
         uses: softprops/action-gh-release@v2
         with:
           tag_name: "latest"
           name: "Nexus Automated Smart Build"
-          body: |
-            🤖 Real Android Binary compiled successfully via Flutter SDK Cloud.
-            📦 Package Processed.
+          body: "🤖 Real Android Binary compiled successfully."
           files: build/outputs/apk/release/app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
