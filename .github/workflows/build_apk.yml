@@ -1,4 +1,4 @@
-name: Nexus Cloud Compiler Engine (Final Success Edition)
+name: Nexus Cloud Compiler Engine (Absolute Success Edition)
 
 on:
   repository_dispatch:
@@ -24,7 +24,7 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Set up Python
+      - name: Set up Python Environment
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
@@ -32,28 +32,31 @@ jobs:
       - name: Install Requests Library
         run: pip install requests
 
-      - name: Create Fresh Project and Inject AI Code
-        env:
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          APP_PROMPT: ${{ github.event.client_payload.command }}
-          APP_NAME: ${{ github.event.client_payload.app_name }}
-          PACKAGE_NAME: ${{ github.event.client_payload.package_name }}
+      - name: Create Isolated Python Compiler Script
         run: |
-          # 1. सर्वर पर एक असली फ्रेश फ्लटर प्रोजेक्ट खड़ा करना
-          flutter create nexus_temp_app --org com.nexus.ai
-          
-          # 2. बिना किसी सिंटैक्स एरर के सेफ तरीके से एआई कोड इन्जेक्ट करना
-          python -c "
-          import os, requests, json, re
+          cat << 'EOF' > compiler.py
+          import os
+          import requests
+          import json
+          import re
+          import sys
 
           prompt = os.environ.get('APP_PROMPT', '')
           app_name = os.environ.get('APP_NAME', 'NexusApp')
           package_name = os.environ.get('PACKAGE_NAME', 'com.nexus.ai')
           api_key = os.environ.get('GROQ_API_KEY', '')
 
-          print(f'>> Processing Code Generation for: {app_name}')
+          if not api_key:
+              print("❌ ERROR: GROQ_API_KEY is missing in GitHub Secrets!")
+              sys.exit(1)
 
-          system_instruction = 'You are the Nexus AI Pro Builder core engine. Generate a complete, robust single-file UI library code in Flutter/Dart inside main.dart.'
+          print(f">> Triggering AI Generation for App: {app_name}")
+
+          system_instruction = (
+              "You are the Nexus AI Pro Builder core engine. "
+              "Generate a complete, production-ready, single-file Flutter UI code inside main.dart. "
+              "Return ONLY valid Dart code wrapped in ```dart ``` blocks. Include all necessary imports."
+          )
 
           headers = {
               'Authorization': f'Bearer {api_key}',
@@ -69,41 +72,58 @@ jobs:
               'temperature': 0.2
           }
 
-          response = requests.post('https://api.groq.com/openai/v1/chat/completions', headers=headers, json=data)
-          res_json = response.json()
+          try:
+              response = requests.post('https://api.groq.com/openai/v1/chat/completions', headers=headers, json=data)
+              res_json = response.json()
+              
+              if 'choices' not in res_json:
+                  print("❌ Groq API Error Response:", res_json)
+                  sys.exit(1)
+                  
+              ai_text = res_json['choices'][0]['message']['content']
+              code_match = re.search(r'```dart(.*?)```', ai_text, re.DOTALL)
+              clean_code = code_match.group(1).strip() if code_match else ai_text.strip()
 
-          if 'choices' not in res_json:
-              print('❌ Groq AI Response Failed')
-              exit(1)
+              os.makedirs('nexus_temp_app/lib', exist_ok=True)
+              with open('nexus_temp_app/lib/main.dart', 'w') as f:
+                  f.write(clean_code)
+              print("✅ AI Code successfully generated and injected into main.dart!")
+          except Exception as e:
+              print(f"❌ Script failed with exception: {e}")
+              sys.exit(1)
+          EOF
 
-          ai_text = res_json['choices'][0]['message']['content']
-          code_match = re.search(r'```dart(.*?)```', ai_text, re.DOTALL)
-          clean_code = code_match.group(1).strip() if code_match else ai_text.strip()
-
-          with open('nexus_temp_app/lib/main.dart', 'w') as f:
-              f.write(clean_code)
-          print('✅ Real Code Injected Successfully!')
-          "
-
-      - name: Compile Real Production Android APK
+      - name: Create Project, Run Compiler and Build Real APK
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          APP_PROMPT: ${{ github.event.client_payload.command }}
+          APP_NAME: ${{ github.event.client_payload.app_name }}
+          PACKAGE_NAME: ${{ github.event.client_payload.package_name }}
         run: |
+          # 1. सर्वर पर नया फ्लटर प्रोजेक्ट खड़ा करना
+          flutter create nexus_temp_app --org com.nexus.ai
+          
+          # 2. सुरक्षित तरीके से पायथन स्क्रिप्ट रन करके कोड डालना
+          python compiler.py
+          
+          # 3. असली प्रोडक्शन एंड्रॉयड एपीके कंपाइल करना
           cd nexus_temp_app
           flutter pub get
           flutter build apk --release --no-tree-shake-icons
           
-          # असली बनी हुई एपीके फाइल को रिलीज फोल्डर में मूव करना
+          # 4. असली बनी हुई बाइनरी फाइल को बाहर पाथ पर निकालना
           cd ..
           mkdir -p build/outputs/apk/release
           cp nexus_temp_app/build/app/outputs/flutter-apk/app-release.apk build/outputs/apk/release/app-release.apk
 
-      - name: Deploy Real Artifact to GitHub Releases
+      - name: Deploy Genuine Artifact to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
           tag_name: "latest"
           name: "Nexus Automated Smart Build"
           body: |
-            🤖 Real APK Compiled Successfully via Flutter Engine.
-            📦 Processed via Cloud System.
+            🤖 Real Android Binary compiled successfully via Flutter SDK Cloud.
+            📦 Package Processed.
           files: build/outputs/apk/release/app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
