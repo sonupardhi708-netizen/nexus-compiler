@@ -3,7 +3,7 @@ name: Nexus Cloud Compiler Engine (Absolute Success Edition)
 on:
   repository_dispatch:
     types: [nexus_build_command]
-  workflow_dispatch: # 👈 इसके जुड़ते ही गिटहब पर मैनुअल बटन चालू हो जाएगा
+  workflow_dispatch:
     inputs:
       command:
         description: 'App UI Requirement Prompt'
@@ -114,23 +114,15 @@ jobs:
       - name: Create Project, Run Compiler and Build Real APK
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          # यहाँ ऐप और गिटहब दोनों के इनपुट को मैच कर दिया गया है
           APP_PROMPT: ${{ github.event.client_payload.command || github.event.inputs.command }}
           APP_NAME: ${{ github.event.client_payload.app_name || github.event.inputs.app_name }}
           PACKAGE_NAME: ${{ github.event.client_payload.package_name || github.event.inputs.package_name }}
         run: |
-          # 1. सर्वर पर नया फ्लटर प्रोजेक्ट खड़ा करना
           flutter create nexus_temp_app --org com.nexus.ai
-          
-          # 2. सुरक्षित तरीके से पायथन स्क्रिप्ट रन करके कोड डाल करना
           python compiler.py
-          
-          # 3. असली प्रोडक्शन एंड्रॉयड एपीके कंपाइल करना
           cd nexus_temp_app
           flutter pub get
           flutter build apk --release --no-tree-shake-icons
-          
-          # 4. असली बनी हुई बाइनरी फाइल को बाहर पाथ पर निकालना
           cd ..
           mkdir -p build/outputs/apk/release
           cp nexus_temp_app/build/app/outputs/flutter-apk/app-release.apk build/outputs/apk/release/app-release.apk
