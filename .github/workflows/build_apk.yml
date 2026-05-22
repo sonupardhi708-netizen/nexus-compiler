@@ -1,4 +1,4 @@
-name: Nexus Cloud Compiler Engine (AI Alive Edition)
+name: Nexus Cloud Compiler Engine (Final Success Edition)
 
 on:
   repository_dispatch:
@@ -18,37 +18,45 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Set up Flutter
+      - name: Set up Flutter Engine
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
           cache: true
 
-      - name: Set up Python for AI Processing
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      - name: Install Request Library
+      - name: Install Requests Library
         run: pip install requests
 
-      - name: Call Groq AI to Generate Code Dynamically
+      - name: Create Fresh Project and Inject AI Code
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          APP_PROMPT: ${{ github.event.client_payload.command }}
+          APP_NAME: ${{ github.event.client_payload.app_name }}
+          PACKAGE_NAME: ${{ github.event.client_payload.package_name }}
         run: |
+          # 1. सर्वर पर एक असली फ्रेश फ्लटर प्रोजेक्ट खड़ा करना
+          flutter create nexus_temp_app --org com.nexus.ai
+          
+          # 2. बिना किसी सिंटैक्स एरर के सेफ तरीके से एआई कोड इन्जेक्ट करना
           python -c "
           import os, requests, json, re
 
-          prompt = \"\"\"${{ github.event.client_payload.command }}\"\"\"
-          app_name = \"\"\"${{ github.event.client_payload.app_name }}\"\"\"
-          package_name = \"\"\"${{ github.event.client_payload.package_name }}\"\"\"
+          prompt = os.environ.get('APP_PROMPT', '')
+          app_name = os.environ.get('APP_NAME', 'NexusApp')
+          package_name = os.environ.get('PACKAGE_NAME', 'com.nexus.ai')
+          api_key = os.environ.get('GROQ_API_KEY', '')
 
-          print(f'>> Processing Request for App: {app_name}')
+          print(f'>> Processing Code Generation for: {app_name}')
 
-          system_instruction = 'You are the Nexus AI Pro Builder core engine. Generate a complete, robust single-file library code in Flutter/Dart.'
+          system_instruction = 'You are the Nexus AI Pro Builder core engine. Generate a complete, robust single-file UI library code in Flutter/Dart inside main.dart.'
 
           headers = {
-              'Authorization': f'Bearer {os.environ[\"GROQ_API_KEY\"]}',
+              'Authorization': f'Bearer {api_key}',
               'Content-Type': 'application/json'
           }
 
@@ -56,7 +64,7 @@ jobs:
               'model': 'llama3-70b-8192',
               'messages': [
                   {'role': 'system', 'content': system_instruction},
-                  {'role': 'user', 'content': f'App Name: {app_name}, Package: {package_name}. Build Command: {prompt}'}
+                  {'role': 'user', 'content': f'App Name: {app_name}, Package: {package_name}. UI Requirement: {prompt}'}
               ],
               'temperature': 0.2
           }
@@ -65,39 +73,37 @@ jobs:
           res_json = response.json()
 
           if 'choices' not in res_json:
-              print('❌ AI Generation Failed! Check API Key.')
-              print(res_json)
+              print('❌ Groq AI Response Failed')
               exit(1)
 
           ai_text = res_json['choices'][0]['message']['content']
-
           code_match = re.search(r'```dart(.*?)```', ai_text, re.DOTALL)
           clean_code = code_match.group(1).strip() if code_match else ai_text.strip()
 
-          os.makedirs('lib', exist_ok=True)
-          with open('lib/main.dart', 'w') as f:
+          with open('nexus_temp_app/lib/main.dart', 'w') as f:
               f.write(clean_code)
-
-          print('✅ SUCCESS: Flutter core code is now ALIVE in lib/main.dart!')
+          print('✅ Real Code Injected Successfully!')
           "
 
-      - name: Compile and Build Real APK
+      - name: Compile Real Production Android APK
         run: |
+          cd nexus_temp_app
           flutter pub get
           flutter build apk --release --no-tree-shake-icons
           
-          # फ़ाइल को सही जगह पर मूव करने के लिए ताकि रिलीज प्लगइन इसे उठा सके
+          # असली बनी हुई एपीके फाइल को रिलीज फोल्डर में मूव करना
+          cd ..
           mkdir -p build/outputs/apk/release
-          cp build/app/outputs/flutter-apk/app-release.apk build/outputs/apk/release/app-release.apk
+          cp nexus_temp_app/build/app/outputs/flutter-apk/app-release.apk build/outputs/apk/release/app-release.apk
 
-      - name: Deploy Generated APK to GitHub Releases
+      - name: Deploy Real Artifact to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
           tag_name: "latest"
           name: "Nexus Automated Smart Build"
           body: |
-            🤖 Generated via Nexus AI Brain.
-            📦 Package Name: ${{ github.event.client_payload.package_name }}
+            🤖 Real APK Compiled Successfully via Flutter Engine.
+            📦 Processed via Cloud System.
           files: build/outputs/apk/release/app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
