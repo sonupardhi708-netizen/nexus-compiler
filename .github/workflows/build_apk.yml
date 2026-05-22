@@ -1,121 +1,54 @@
-name: Nexus Cloud Compiler Engine (Absolute Success Edition)
-
+name: Nexus Cloud Compiler Engine
 on:
   repository_dispatch:
     types: [nexus_build_command]
   workflow_dispatch:
     inputs:
       command:
-        description: 'App UI Requirement Prompt'
+        description: 'App UI Requirement'
         required: false
-        default: 'Create a beautiful splash screen and home dashboard app'
+        default: 'Simple dashboard app'
       app_name:
         description: 'App Name'
         required: false
-        default: 'NexusLifeControl'
-      package_name:
-        description: 'Package Name'
-        required: false
-        default: 'com.nexus.lifecontrol'
+        default: 'NexusApp'
 
 jobs:
-  build-and-compile:
+  build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout Code Blueprint
-        uses: actions/checkout@v4
-
-      - name: Set up Java / JDK 17
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
-
-      - name: Set up Flutter Engine
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          cache: true
-
-      - name: Set up Python Environment
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
-
-      - name: Install Requests Library
+      - name: Install dependencies
         run: pip install requests
-
-      - name: Create Isolated Python Compiler Script
-        run: |
-          cat << 'EOF' > compiler.py
-          import os
-          import requests
-          import json
-          import re
-          import sys
-
-          prompt = os.environ.get('APP_PROMPT', '')
-          app_name = os.environ.get('APP_NAME', 'NexusApp')
-          package_name = os.environ.get('PACKAGE_NAME', 'com.nexus.ai')
-          api_key = os.environ.get('GROQ_API_KEY', '')
-
-          if not api_key:
-              print("❌ ERROR: GROQ_API_KEY is missing!")
-              sys.exit(1)
-
-          if not prompt:
-              prompt = "Create a simple beautiful responsive flutter app dashboard"
-
-          system_instruction = "You are the Nexus AI Pro Builder core engine. Generate a complete, production-ready, single-file Flutter UI code inside main.dart. Return ONLY valid Dart code wrapped in ```dart 
-``` blocks. Include all necessary imports."
-
-          headers = {'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'}
-          data = {
-              'model': 'llama3-70b-8192',
-              'messages': [
-                  {'role': 'system', 'content': system_instruction},
-                  {'role': 'user', 'content': f'App Name: {app_name}, Package: {package_name}. UI Requirement: {prompt}'}
-              ],
-              'temperature': 0.2
-          }
-
-          try:
-              response = requests.post('https://api.groq.com/openai/v1/chat/completions', headers=headers, json=data)
-              res_json = response.json()
-              ai_text = res_json['choices'][0]['message']['content']
-              code_match = re.search(r'```dart(.*?)```', ai_text, re.DOTALL)
-              clean_code = code_match.group(1).strip() if code_match else ai_text.strip()
-              os.makedirs('nexus_temp_app/lib', exist_ok=True)
-              with open('nexus_temp_app/lib/main.dart', 'w') as f:
-                  f.write(clean_code)
-          except Exception as e:
-              print(f"❌ Script failed: {e}")
-              sys.exit(1)
-          EOF
-
-      - name: Create Project, Run Compiler and Build Real APK
+      - name: Build and Compile
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          APP_PROMPT: ${{ github.event.client_payload.command || github.event.inputs.command }}
-          APP_NAME: ${{ github.event.client_payload.app_name || github.event.inputs.app_name }}
-          PACKAGE_NAME: ${{ github.event.client_payload.package_name || github.event.inputs.package_name }}
+          APP_PROMPT: ${{ github.event.inputs.command }}
+          APP_NAME: ${{ github.event.inputs.app_name }}
         run: |
-          flutter create nexus_temp_app --org com.nexus.ai
-          python compiler.py
-          cd nexus_temp_app
+          python3 -c "
+          import os, requests, re
+          prompt = os.getenv('APP_PROMPT') or 'Create a simple dashboard'
+          api_key = os.getenv('GROQ_API_KEY')
+          headers = {'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'}
+          data = {'model': 'llama3-70b-8192', 'messages': [{'role': 'user', 'content': f'Generate Flutter main.dart code for: {prompt}'}], 'temperature': 0.2}
+          res = requests.post('https://api.groq.com/openai/v1/chat/completions', headers=headers, json=data).json()
+          code = re.search(r'```dart(.*?)```', res['choices'][0]['message']['content'], re.DOTALL).group(1)
+          os.makedirs('lib', exist_ok=True)
+          with open('lib/main.dart', 'w') as f: f.write(code)
+          "
+          flutter create .
           flutter pub get
           flutter build apk --release --no-tree-shake-icons
-          cd ..
-          mkdir -p build/outputs/apk/release
-          cp nexus_temp_app/build/app/outputs/flutter-apk/app-release.apk build/outputs/apk/release/app-release.apk
-
-      - name: Deploy Genuine Artifact
-        uses: softprops/action-gh-release@v2
+      - name: Upload
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: "latest"
-          name: "Nexus Automated Smart Build"
-          body: "🤖 Real Android Binary compiled successfully."
-          files: build/outputs/apk/release/app-release.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: app
+          path: build/app/outputs/flutter-apk/app-release.apk
