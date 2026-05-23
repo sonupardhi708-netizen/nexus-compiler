@@ -40,10 +40,8 @@ jobs:
           APP_PROMPT: ${{ github.event.inputs.command || github.event.client_payload.command || 'Simple dashboard app' }}
           APP_NAME: ${{ github.event.inputs.app_name || github.event.client_payload.app_name || 'NexusLifeControl' }}
         run: |
-          # पहले फ़्लटर प्रोजेक्ट ढांचा तैयार करेंगे
           flutter create project_source --org com.nexus.lifecontrol
           
-          # अब पायथन से AI कोड जनरेट करके सही जगह पर लिखेंगे
           python3 -c "
           import os, requests, json, re
           api_key = os.getenv('GROQ_API_KEY')
@@ -53,7 +51,7 @@ jobs:
           headers = {'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'}
           data = {'model': 'llama3-70b-8192', 'messages': [{'role': 'system', 'content': sys_ins}, {'role': 'user', 'content': prompt}], 'temperature': 0.3}
           
-          res = requests.post('[https://api.groq.com/openai/v1/chat/completions](https://api.groq.com/openai/v1/chat/completions)', headers=headers, json=data).json()
+          res = requests.post('https://api.groq.com/openai/v1/chat/completions', headers=headers, json=data).json()
           ai_text = res['choices'][0]['message']['content']
           
           code_match = re.search(r'```dart(.*?)
@@ -64,7 +62,6 @@ jobs:
               f.write(clean_code)
           "
           
-          # अब फाइनल बिल्ड प्रक्रिया शुरू करेंगे
           cd project_source
           flutter pub get
           flutter build apk --release --no-tree-shake-icons
@@ -72,7 +69,7 @@ jobs:
           mkdir -p build/outputs/apk/release
           cp project_source/build/app/outputs/flutter-apk/app-release.apk build/outputs/apk/release/app-release.apk
 
-      - name: Upload
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: app
