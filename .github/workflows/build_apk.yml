@@ -2,7 +2,7 @@ name: Nexus Cloud Compiler Engine
 
 on:
   repository_dispatch:
-    types: [nexus_build_command]
+    types: [nexus_build]
   workflow_dispatch:
     inputs:
       command:
@@ -30,8 +30,8 @@ jobs:
 
       - name: Build APK
         env:
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          APP_PROMPT: ${{ github.event.inputs.command || github.event.client_payload.command || 'Simple dashboard app' }}
+          GRDQ_API_KEY: ${{ secrets.GRDQ_API_KEY }}
+          APP_PROMPT: ${{ github.event.inputs.command || github.event.client_payload.command }}
         run: |
           pip install requests
           flutter create project_source --org com.nexus.lifecontrol
