@@ -13,6 +13,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 🔑 यह गिटहब को खुद से रीलीज़ और APK बनाने की पूरी पावर देता है
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -47,3 +49,15 @@ jobs:
         with:
           name: app
           path: build/outputs/apk/release/app-release.apk
+
+      - name: 🔥 Auto Release APK (Zinda Mode)
+        uses: softprops/action-gh-release@v2
+        if: success()
+        with:
+          tag_name: latest
+          name: "Nexus AI PRO Generated Build"
+          draft: false
+          prerelease: false
+          files: build/outputs/apk/release/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
