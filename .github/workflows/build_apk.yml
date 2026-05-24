@@ -14,7 +14,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # 🔑 यह गिटहब को खुद से रिलीज और APK बनाने की पूरी पावर देता है
+      contents: write
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -22,8 +22,8 @@ jobs:
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
-          java-version: '17'
+          distribution: "zulu"
+          java-version: "17"
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -33,15 +33,14 @@ jobs:
       - name: Build APK
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          # ⚡ FIX LOGIC: अब यह ऐप से आने वाले नए APP_PROMPT पेलोड को 100% सही तरीके से पकड़ेगा
           APP_PROMPT: ${{ github.event.inputs.command || github.event.client_payload.APP_PROMPT }}
-          # 📦 EXTRA LOGIC: ऐप का नाम और पैकेज आईडी भी स्क्रिप्ट तक सुरक्षित पहुँचाने के लिए
           APP_NAME: ${{ github.event.client_payload.app_name || 'Nexus App' }}
           PKG_NAME: ${{ github.event.client_payload.pkg_name || 'com.nexus.live' }}
         run: |
           pip install requests
           flutter create project_source --org com.nexus.livecontrol
           python3 build_script.py
+          mv lib/main.dart project_source/lib/main.dart
           cd project_source
           flutter pub get
           flutter build apk --release --no-tree-shake-icons
@@ -65,3 +64,4 @@ jobs:
           files: build/outputs/apk/release/app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
