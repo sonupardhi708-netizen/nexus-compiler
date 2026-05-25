@@ -1,1 +1,87 @@
-1
+name: Nexus Cloud Compiler Engine
+
+on:
+  repository_dispatch:
+    types: [nexus_build]
+  workflow_dispatch:
+    inputs:
+      command:
+        description: 'App UI Requirement'
+        required: false
+        default: 'Simple dashboard app'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "zulu"
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Build APK
+        env:
+          APP_PROMPT: ${{ github.event.inputs.command || github.event.client_payload.APP_PROMPT }}
+          APP_NAME: ${{ github.event.client_payload.app_name || 'NexusApp' }}
+          PKG_NAME: ${{ github.event.client_payload.package_name || 'com.nexus.app' }}
+        run: |
+          pip install requests
+          
+          # 1. Dynamic Flutter Project Creation
+          APP_DIR_NAME="${APP_NAME,,}"
+          APP_DIR_NAME=$(echo "$APP_DIR_NAME" | tr -cd 'a-z0-9_')
+          if [ -z "$APP_DIR_NAME" ]; then APP_DIR_NAME="nexusapp"; fi
+          
+          flutter create project_source --org "$PKG_NAME" --project-name "$APP_DIR_NAME" || flutter create project_source --org "com.nexus" --project-name "nexusapp"
+          
+          # 2. Run Python Core to map JSON Architecture
+          python3 build_script.py
+          
+          # 3. Smart Validation Check
+          if [ -f lib/main.dart ]; then
+            echo "🟢 SUCCESS: Component layout generated in root lib! Moving to project..."
+            cp lib/main.dart project_source/lib/main.dart
+          elif [ -f project_source/lib/main.dart ]; then
+            echo "🟢 SUCCESS: Component layout already injected in project_source!"
+          else
+            echo "❌ ERROR: Layout generation failed! main.dart missing."
+            exit 1
+          fi
+          
+          # 4. Navigate and Compile Real APK
+          cd project_source
+          flutter pub get
+          flutter build apk --release --no-tree-shake-icons
+          
+          # 5. Move final binary to release path
+          mkdir -p ../build/outputs/apk/release
+          cp build/app/outputs/flutter-apk/app-release.apk ../build/outputs/apk/release/app-release.apk
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app
+          path: build/outputs/apk/release/app-release.apk
+
+      - name: 🔥 Auto Release APK (Zinda Mode)
+        uses: softprops/action-gh-release@v2
+        if: success()
+        with:
+          tag_name: latest
+          name: "Nexus AI PRO Generated Build"
+          draft: false
+          prerelease: false
+          files: build/outputs/apk/release/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
